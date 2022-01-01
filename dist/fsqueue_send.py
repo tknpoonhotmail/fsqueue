@@ -2,9 +2,11 @@
 import sys
 sys.dont_write_bytecode = True
 #######################################
-"""
-Usage:
-fsqueue_send.py qname json_dict_text [blob_files ...]
+usagetext="""
+Usage: %s qname json_dict_text [blob_files ...]
+    qname           - Queue Name
+    json_dict_text  - one liner of json dict text e.g. '{"id":1}'
+    blob_files      - list of file path on the server. the basename will be the key in the dict.
 """
 #######################################
 import os,json,pprint
@@ -12,10 +14,7 @@ from FsQueue import FsQueue
 
 #######################################
 def usage():
-    usagetext="""
-Usage: %s qname json_dict_text [blob_files ...]
-""" % (sys.argv[0])
-    print(usagetext)
+    print(usagetext % (sys.argv[0]))
 
 #######################################
 def main():

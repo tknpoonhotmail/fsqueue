@@ -118,20 +118,24 @@ class FsQueue():
         return msg
 
     #################################################
-    def read(self):
-        """
-        {'id': msgid, 'payload': list_of_dict}
-        """
+    def read(self, getmsgid=''):
         countdown = self.timeout / self.polling_interval
         while True:
-            filelist = glob.glob(os.path.join(self.q_input, "*.json"))
+            if getmsgid:
+                jfile = os.path.join(self.q_input, "%s.json"%(getmsgid))
+                filelist = [jfile] if os.path.isfile(jfile) else []
+                countdown=0
+            else:
+                filelist = sorted( glob.glob(os.path.join(self.q_input, "*.json")), key=os.path.getmtime)
+
             if filelist:
-                msgid= os.path.basename(filelist[0]).replace('.json', '')
-                return msgid, self.read_msg(msgid)
-            time.sleep(self.polling_interval)
+                _msgid= os.path.basename(filelist[0]).replace('.json', '')
+                return _msgid, self.read_msg(_msgid)
+
             countdown -= 1
             if countdown <=0:   
                 return None,[]
+            time.sleep(self.polling_interval)
         
     #################################################
     def ack(self,msgid):

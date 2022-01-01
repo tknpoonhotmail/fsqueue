@@ -2,9 +2,8 @@
 import sys
 sys.dont_write_bytecode = True
 #######################################
-"""
-Usage:
-fsqueue_consume.py qname [-f]
+usagetext="""
+Usage: %s qname [msgid] [-f]
 """
 #######################################
 import os,json,pprint
@@ -12,11 +11,7 @@ from FsQueue import FsQueue
 
 #######################################
 def usage():
-    usagetext="""
-Usage: %s qname [-f]
-    -f : fail 
-""" % (sys.argv[0])
-    print(usagetext)
+    print(usagetext %(sys.argv[0]))
 
 #######################################
 def main():
@@ -25,19 +20,20 @@ def main():
         sys.exit(1)
     _qname  = sys.argv[1]
     _restlist = sys.argv[2:]
-
-    # print(_qname)
-    # print(_restlist)
+    
+    if "-f" in _restlist:
+        _to_fail = True
+        _restlist.remove('-f')
+    else: 
+        _to_fail = False
 
     q = FsQueue(_qname,timeout=10)
 
-    id,msg = q.read()
+    id,msg = q.read(_restlist[0]) if _restlist  else q.read()
+    
     if id:
         pprint.pprint(msg)
-        if "-f" in _restlist:
-            q.nack(id)
-        else:
-            q.ack(id)
+        q.nack(id) if _to_fail else q.ack(id)
     else:
         print("No message")
 
