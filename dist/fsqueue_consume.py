@@ -4,7 +4,7 @@ sys.dont_write_bytecode = True
 #######################################
 """
 Usage:
-fsqueue_send.py qname json_dict_text [blob_files ...]
+fsqueue_consume.py qname [-f]
 """
 #######################################
 import os,json,pprint
@@ -13,29 +13,33 @@ from FsQueue import FsQueue
 #######################################
 def usage():
     usagetext="""
-Usage: %s qname json_dict_text [blob_files ...]
+Usage: %s qname [-f]
+    -f : fail 
 """ % (sys.argv[0])
     print(usagetext)
 
 #######################################
 def main():
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         usage()
         sys.exit(1)
-    [_qname , _json_text] = sys.argv[1:3]
-    _bloblist = sys.argv[3:]
+    _qname  = sys.argv[1]
+    _restlist = sys.argv[2:]
 
-    data = json.loads(_json_text)
+    # print(_qname)
+    # print(_restlist)
 
-    blobdict={}
-    for fname in _bloblist:
-        with open(fname,'rb') as f:
-            blobdict[ os.path.basename(fname) ] = f.read()
-    if blobdict:
-        data["blobs"] = blobdict
+    q = FsQueue(_qname,timeout=10)
 
-    FsQueue(_qname).send( [data] )
-
+    id,msg = q.read()
+    if id:
+        pprint.pprint(msg)
+        if "-f" in _restlist:
+            q.nack(id)
+        else:
+            q.ack(id)
+    else:
+        print("No message")
 
 #######################################
 if __name__ == "__main__":
