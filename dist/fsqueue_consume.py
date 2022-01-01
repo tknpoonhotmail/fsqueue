@@ -20,13 +20,11 @@ def main():
         sys.exit(1)
     _qname  = sys.argv[1]
     _restlist = sys.argv[2:]
-    
-    if "-f" in _restlist:
-        _to_fail = True
-        _restlist.remove('-f')
-    else: 
-        _to_fail = False
 
+    _to_fail = True  if "-f" in _restlist else False
+    if _to_fail: _restlist.remove('-f')
+
+    ###
     q = FsQueue(_qname,timeout=10)
 
     id,msg = q.read(_restlist[0]) if _restlist  else q.read()
