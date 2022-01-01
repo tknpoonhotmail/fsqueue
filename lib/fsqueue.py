@@ -6,7 +6,7 @@ import datetime as dt
 class FsQueue():
     def __init__(self,qname,timeout=60):
         # default
-        self.queues_parent_dir=os.path.join( os.environ['HOME'], "queues_tmp")
+        self.queues_parent_dir=os.path.join( os.environ['HOME'], "tmp", "_queues")
         self.polling_interval = 5
         self.timeout = 60
         self.max_processing_age=86400
