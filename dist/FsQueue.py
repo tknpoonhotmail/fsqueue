@@ -37,15 +37,10 @@ class FsQueue():
     def del_msg(self, msgid, fromdir):
         try:
             os.remove(os.path.join(fromdir, msgid +'.json'))
-<<<<<<< HEAD
-            msgblobdir=os.path.join(fromdir, msgid)
-            if os.path.isdir(msgblobdir):   shutil.rmtree(msgblobdir)
-=======
 
             fromblobdir = os.path.join(fromdir, msgid)
             if os.path.isdir(fromblobdir):  shutil.rmtree(fromblobdir)
 
->>>>>>> 81132166f1b597c27581d151c833abff04a559ec
             return True
         # except FileNotFoundError as e:
         except IOError as e:
@@ -60,18 +55,11 @@ class FsQueue():
             if os.path.isdir(destblobdir): shutil.rmtree(destblobdir)
             if os.path.isdir(srcblobdir): shutil.move(srcblobdir,  destblobdir)
             for p in glob.glob(os.path.join(destdir, msgid+"*")):
-<<<<<<< HEAD
-                os.utime(p)
-            return True
-        # except FileNotFoundError as e:
-        except IOError as e:
-=======
                 os.utime(p,(time.time(), time.time()))
 
             return True
         except FileNotFoundError:
             # print("filenotfound")
->>>>>>> 81132166f1b597c27581d151c833abff04a559ec
             return False
 
     #################################################
