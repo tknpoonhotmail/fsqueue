@@ -33,17 +33,7 @@ class FsQueue():
                 os.makedirs(d)
 
     #################################################
-    def purge(self):
-        queuemsgs = self.getlist()
-        for stage in self.q_states:
-            for msgid in queuemsgs[stage]:
-                r = self.del_msg(msgid, os.path.join(self.queue_dir, stage))
-                if not r :
-                    return False
-        return True
-
-    #################################################
-    def del_msg(self, msgid, fromdir):
+    def _del_msg(self, msgid, fromdir):
         try:
             os.remove(os.path.join(fromdir, msgid +'.json'))
 
@@ -54,7 +44,7 @@ class FsQueue():
         except (FileNotFoundError, OSError) as e:
             return False
     #################################################
-    def move_msg(self, msgid, srcdir, destdir):
+    def _move_msg(self, msgid, srcdir, destdir):
         try:
             os.rename(os.path.join(srcdir, msgid +'.json')  , os.path.join(destdir, msgid +'.json'))
 
@@ -71,50 +61,50 @@ class FsQueue():
             return False
 
     #################################################
-    def newID(self):
-        """ New msg ID """
-        curtime=dt.datetime.now()
-        return "%s-%s" % (self.qname ,curtime.strftime("%Y%m%d-%H%M%S-%f"))
+    def _read_msg(self, msgid):
+        """
+        JSON file is:
+            [   {"fieldA":dataA, "fieldB":dataB, "blobs":[<name>,...] } ]
+        blob will be saved as:
+            <id>/<seq_from_0>/<name>
+        Return list_of_dict
+        """
+        msg=[]
+        # move to processing
+        if self._move_msg(msgid, self.q_input, self.q_processing) : #process message
+            with open(os.path.join(self.q_processing, msgid+'.json'), 'rb') as infile:
+                list_of_dict = json.load(infile)
+            # pprint.pprint(list_of_dict)
+            count =0
+            for d in list_of_dict:
+                blobnames = d.pop("blobs",None)
+                if blobnames is not None:
+                    blobdict={}
+                    for k in blobnames:
+                        blobdir=os.path.join(self.q_processing, msgid, str(count))
+                        with open(os.path.join(blobdir,k), 'rb') as bfile:
+                            data=bfile.read()
+                        blobdict[k] = data
+                    d["blobs"]=blobdict
+                msg.append(d)
+                count += 1
+
+        return msg
 
     #################################################
-    def msg_age(self, msgdir, msgid):
+    def _msg_age(self, msgdir, msgid):
         try:
             m_time = os.path.getmtime( os.path.join(msgdir, msgid+'.json'))
         except (FileNotFoundError, OSError) as e:
             m_time = time.time()
         return int(time.time() - m_time)
-    #################################################
-    def ageout(self, max_age=-1):
-        """
-        max_age of -1 means to follow the default
-        """
-        max_age_to_use = self.max_processing_age  if max_age <0  else  max_age
-        result=[]
 
-        stage = os.path.basename(self.q_processing)
-        for msgid in self.getlist()[stage]:
-            age = self.msg_age(self.q_processing, msgid)
-            if age > max_age_to_use:
-                result.append(msgid)
-                self.move_msg(msgid, self.q_processing, self.q_failed)
-        return result
-        
     #################################################
-    def requeue_succeed(self):
-        result=[]
-        for msgid in self.getlist()[os.path.basename(self.q_success)]:
-            result.append(msgid)
-            self.move_msg(msgid, self.q_success, self.q_input)
-        return result
-        
-    #################################################
-    def retry_failed(self):
-        result=[]
-        for msgid in self.getlist()[os.path.basename(self.q_failed)]:
-            result.append(msgid)
-            self.move_msg(msgid, self.q_failed, self.q_input)
-        return result
-        
+    def _newID(self):
+        """ New msg ID """
+        curtime=dt.datetime.now()
+        return "%s-%s" % (self.qname ,curtime.strftime("%Y%m%d-%H%M%S-%f"))
+
     #################################################
     def getlist(self):
         """
@@ -131,6 +121,48 @@ class FsQueue():
         return result
 
     #################################################
+    def purge(self):
+        queuemsgs = self.getlist()
+        for stage in self.q_states:
+            for msgid in queuemsgs[stage]:
+                r = self._del_msg(msgid, os.path.join(self.queue_dir, stage))
+                if not r :
+                    return False
+        return True
+
+    #################################################
+    def ageout(self, max_age=-1):
+        """
+        max_age of -1 means to follow the default
+        """
+        max_age_to_use = self.max_processing_age  if max_age <0  else  max_age
+        result=[]
+
+        stage = os.path.basename(self.q_processing)
+        for msgid in self.getlist()[stage]:
+            age = self._msg_age(self.q_processing, msgid)
+            if age > max_age_to_use:
+                result.append(msgid)
+                self._move_msg(msgid, self.q_processing, self.q_failed)
+        return result
+        
+    #################################################
+    def requeue_succeed(self):
+        result=[]
+        for msgid in self.getlist()[os.path.basename(self.q_success)]:
+            result.append(msgid)
+            self._move_msg(msgid, self.q_success, self.q_input)
+        return result
+        
+    #################################################
+    def retry_failed(self):
+        result=[]
+        for msgid in self.getlist()[os.path.basename(self.q_failed)]:
+            result.append(msgid)
+            self._move_msg(msgid, self.q_failed, self.q_input)
+        return result
+        
+    #################################################
     def send(self, list_of_dict):
         """
         list_of_dict in the following format:
@@ -142,7 +174,7 @@ class FsQueue():
         """
         count =0
         realmsg=[]
-        id = self.newID()
+        id = self._newID()
         for d in list_of_dict:
             blobs = d.pop("blobs",None)
             if blobs is not None:
@@ -166,37 +198,6 @@ class FsQueue():
         return id
 
     #################################################
-    def read_msg(self, msgid):
-        """
-        JSON file is:
-            [   {"fieldA":dataA, "fieldB":dataB, "blobs":[<name>,...] } ]
-        blob will be saved as:
-            <id>/<seq_from_0>/<name>
-        Return list_of_dict
-        """
-        msg=[]
-        # move to processing
-        if self.move_msg(msgid, self.q_input, self.q_processing) : #process message
-            with open(os.path.join(self.q_processing, msgid+'.json'), 'rb') as infile:
-                list_of_dict = json.load(infile)
-            # pprint.pprint(list_of_dict)
-            count =0
-            for d in list_of_dict:
-                blobnames = d.pop("blobs",None)
-                if blobnames is not None:
-                    blobdict={}
-                    for k in blobnames:
-                        blobdir=os.path.join(self.q_processing, msgid, str(count))
-                        with open(os.path.join(blobdir,k), 'rb') as bfile:
-                            data=bfile.read()
-                        blobdict[k] = data
-                    d["blobs"]=blobdict
-                msg.append(d)
-                count += 1
-
-        return msg
-
-    #################################################
     def read(self, getmsgid=''):
         countdown = self.timeout / self.polling_interval
         while True:
@@ -209,7 +210,7 @@ class FsQueue():
 
             if filelist:
                 _msgid= os.path.basename(filelist[0]).replace('.json', '')
-                msg = self.read_msg(_msgid)
+                msg = self._read_msg(_msgid)
                 # pprint.pprint(msg)
                 return _msgid, msg
 
@@ -221,11 +222,11 @@ class FsQueue():
     #################################################
     def ack(self,msgid):
         if self.keep_success:
-            self.move_msg(msgid, self.q_processing, self.q_success)
+            self._move_msg(msgid, self.q_processing, self.q_success)
         else:
-            self.del_msg(msgid, self.q_processing)
+            self._del_msg(msgid, self.q_processing)
 
     #################################################
     def nack(self,msgid):
-        self.move_msg(msgid, self.q_processing, self.q_failed)
+        self._move_msg(msgid, self.q_processing, self.q_failed)
 
