@@ -25,7 +25,7 @@ def main():
         usage()
         sys.exit(1)
     [_qname , _command] = sys.argv[1:]
-    if _command not in ['display', 'ageout','requeue', 'purge']:
+    if _command not in ['display', 'ageout','requeue', 'retry', 'purge']:
         usage()
         sys.exit(2)
     ###
