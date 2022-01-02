@@ -25,7 +25,7 @@ def main():
     if _to_fail: _restlist.remove('-f')
 
     ###
-    q = FsQueue(_qname,timeout=10,keep_success=True)
+    q = FsQueue(_qname,timeout=2)
 
     id,msg = q.read(_restlist[0]) if _restlist  else q.read()
     
