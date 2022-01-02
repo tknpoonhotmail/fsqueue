@@ -9,19 +9,18 @@ except NameError:
 
 #########################################################
 class FsQueue():
-    def __init__(self,qname,timeout=60):
+    def __init__(self,qname,timeout=60, keep_success=False):
+        self.qname = qname 
+        self.keep_success = keep_success
+        self.timeout = timeout
         # default
         self.queues_parent_dir=os.path.join( os.environ['HOME'], "tmp", "_queues")
         self.polling_interval = 5
-        self.timeout = 60
         self.max_processing_age=86400
-        self.keep_success = False
         # 
-        self.qname = qname 
-        self.timeout = timeout
-        #
         self.queue_dir = os.path.join(self.queues_parent_dir, self.qname)
-        self.q_input = os.path.join(self.queue_dir, 'input')
+        #
+        self.q_input = os.path.join(self.queue_dir, "input")
         self.q_processing = os.path.join(self.queue_dir, 'processing')
         self.q_failed = os.path.join(self.queue_dir, 'failed')
         self.q_success = os.path.join(self.queue_dir, 'success')
@@ -101,7 +100,15 @@ class FsQueue():
         return result
         
     #################################################
-    def requeue_failed(self):
+    def requeue_succeed(self):
+        result=[]
+        for msgid in self.getlist()[os.path.basename(self.q_success)]:
+            result.append(msgid)
+            self.move_msg(msgid, self.q_success, self.q_input)
+        return result
+        
+    #################################################
+    def retry_failed(self):
         result=[]
         for msgid in self.getlist()[os.path.basename(self.q_failed)]:
             result.append(msgid)
@@ -221,33 +228,4 @@ class FsQueue():
     #################################################
     def nack(self,msgid):
         self.move_msg(msgid, self.q_processing, self.q_failed)
-
-#########################################################
-#########################################################
-#########################################################
-def msgsend(fsq):
-    ba = bytearray("a_string".encode())
-    msg =[]
-    msg.append({"key":True, "blobs":{"a.bin":ba ,"b.bin":ba} })
-    msg.append({"key":False})
-    msg.append({"key":True, "blobs":{"b.bin":ba } })
-    fsq.send(msg)
-
-def msgread(fsq):
-    while True:
-        id,msg=fsq.read()
-        if id:
-            print("got msg:")
-            pprint.pprint(msg)
-            fsq.ack(id)
-        else:
-            print("no msg to process")
-            return 
-    
-if __name__ == "__main__":
-    testq = FsQueue("testq",10)
-    print(testq.q_states)
-    # msgsend(testq)
-    # msgread(testq)
-    # testq.move_msg("testq-20220101-163343-002423", testq.q_failed, testq.q_input)
 

@@ -3,12 +3,13 @@ import sys
 sys.dont_write_bytecode = True
 #######################################
 usagetext="""
-Usage: %s qname {display | ageout | requeue | purge}
+Usage: %s qname {display | ageout | requeue | retry | purge}
     qname   - Queue Name
 
     display - Display the queue count
     ageout  - Check the stuck processing items; fail them if too old.
-    requeue - Requeue the failed items; i.e. put back to input
+    requeue - Requeue the succeed items; i.e. put back to input
+    retry   - Requeue the failed items; i.e. put back to input
     purge   - Purge all messages from the queue
 """
 #######################################
@@ -34,7 +35,11 @@ def main():
         print("Requeued aged msg:")
         pprint.pprint(aged)
     elif _command == "requeue":
-        requeued = q.requeue_failed()
+        requeued = q.requeue_succeed()
+        print("Requeued successed msg:")
+        pprint.pprint(requeued)
+    elif _command == "retry":
+        requeued = q.retry_failed()
         print("Requeued failed msg:")
         pprint.pprint(requeued)
     elif _command == "display":
