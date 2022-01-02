@@ -3,12 +3,13 @@ import sys
 sys.dont_write_bytecode = True
 #######################################
 usagetext="""
-Usage: %s qname {display | ageout | requeue}
+Usage: %s qname {display | ageout | requeue | purge}
     qname   - Queue Name
 
     display - Display the queue count
     ageout  - Check the stuck processing items; fail them if too old.
     requeue - Requeue the failed items; i.e. put back to input
+    purge   - Purge all messages from the queue
 """
 #######################################
 import os,json,pprint
@@ -23,7 +24,7 @@ def main():
         usage()
         sys.exit(1)
     [_qname , _command] = sys.argv[1:]
-    if _command not in ['display', 'ageout','requeue']:
+    if _command not in ['display', 'ageout','requeue', 'purge']:
         usage()
         sys.exit(2)
     ###
@@ -36,8 +37,11 @@ def main():
         requeued = q.requeue_failed()
         print("Requeued failed msg:")
         pprint.pprint(requeued)
-    else: # display
+    elif _command == "display":
         pprint.pprint(q.getlist())
+    elif _command == "purge":
+        result = q.purge()
+        print("Purge queue %s %s"%(_qname, "Success" if result else "Failed"))
 
     
 #######################################

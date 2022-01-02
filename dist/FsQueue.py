@@ -34,6 +34,16 @@ class FsQueue():
                 os.makedirs(d)
 
     #################################################
+    def purge(self):
+        queuemsgs = self.getlist()
+        for stage in self.q_states:
+            for msgid in queuemsgs[stage]:
+                r = self.del_msg(msgid, os.path.join(self.queue_dir, stage))
+                if not r :
+                    return False
+        return True
+
+    #################################################
     def del_msg(self, msgid, fromdir):
         try:
             os.remove(os.path.join(fromdir, msgid +'.json'))
