@@ -30,6 +30,7 @@ def main():
     id,msg = q.read(_restlist[0]) if _restlist  else q.read()
     
     if id:
+        print("got msg")
         pprint.pprint(msg)
         q.nack(id) if _to_fail else q.ack(id)
     else:
