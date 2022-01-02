@@ -33,7 +33,8 @@ def main():
     if blobdict:
         data["blobs"] = blobdict
 
-    FsQueue(_qname).send( [data] )
+    msgid=FsQueue(_qname).send( [data] )
+    print(msgid)
 
 
 #######################################

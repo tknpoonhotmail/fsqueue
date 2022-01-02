@@ -2,6 +2,11 @@ import os, sys, pprint, json, shutil, glob
 import time
 import datetime as dt
 
+try:
+    FileNotFoundError  # Python 3
+except NameError:
+    FileNotFoundError = IOError # Python 2
+
 #########################################################
 class FsQueue():
     def __init__(self,qname,timeout=60):
@@ -21,6 +26,8 @@ class FsQueue():
         self.q_failed = os.path.join(self.queue_dir, 'failed')
         self.q_success = os.path.join(self.queue_dir, 'success')
 
+        self.q_states = [os.path.basename(x) for x in [self.q_input, self.q_processing, self.q_failed, self.q_success]]
+
         #ensure dirs exist
         for d in [self.q_input, self.q_processing, self.q_failed, self.q_success] :
             if not os.path.isdir(d):
@@ -30,8 +37,15 @@ class FsQueue():
     def del_msg(self, msgid, fromdir):
         try:
             os.remove(os.path.join(fromdir, msgid +'.json'))
+<<<<<<< HEAD
             msgblobdir=os.path.join(fromdir, msgid)
             if os.path.isdir(msgblobdir):   shutil.rmtree(msgblobdir)
+=======
+
+            fromblobdir = os.path.join(fromdir, msgid)
+            if os.path.isdir(fromblobdir):  shutil.rmtree(fromblobdir)
+
+>>>>>>> 81132166f1b597c27581d151c833abff04a559ec
             return True
         # except FileNotFoundError as e:
         except IOError as e:
@@ -40,12 +54,24 @@ class FsQueue():
     def move_msg(self, msgid, srcdir, destdir):
         try:
             os.rename(os.path.join(srcdir, msgid +'.json')  , os.path.join(destdir, msgid +'.json'))
-            shutil.move(os.path.join(srcdir, msgid),  os.path.join(destdir, msgid))
+
+            srcblobdir=os.path.join(srcdir, msgid)
+            destblobdir=os.path.join(destdir, msgid)
+            if os.path.isdir(destblobdir): shutil.rmtree(destblobdir)
+            if os.path.isdir(srcblobdir): shutil.move(srcblobdir,  destblobdir)
             for p in glob.glob(os.path.join(destdir, msgid+"*")):
+<<<<<<< HEAD
                 os.utime(p)
             return True
         # except FileNotFoundError as e:
         except IOError as e:
+=======
+                os.utime(p,(time.time(), time.time()))
+
+            return True
+        except FileNotFoundError:
+            # print("filenotfound")
+>>>>>>> 81132166f1b597c27581d151c833abff04a559ec
             return False
 
     #################################################
@@ -53,6 +79,52 @@ class FsQueue():
         """ New msg ID """
         curtime=dt.datetime.now()
         return "%s-%s" % (self.qname ,curtime.strftime("%Y%m%d-%H%M%S-%f"))
+
+    #################################################
+    def msg_age(self, msgdir, msgid):
+        try:
+            m_time = os.path.getmtime( os.path.join(msgdir, msgid+'.json'))
+        except (FileNotFoundError, OSError) as e:
+            m_time = time.time()
+        return int(time.time() - m_time)
+    #################################################
+    def ageout(self, max_age=-1):
+        """
+        max_age of -1 means to follow the default
+        """
+        max_age_to_use = self.max_processing_age  if max_age <0  else  max_age
+        result=[]
+
+        stage = os.path.basename(self.q_processing)
+        for msgid in self.getlist()[stage]:
+            age = self.msg_age(self.q_processing, msgid)
+            if age > max_age_to_use:
+                result.append(msgid)
+                self.move_msg(msgid, self.q_processing, self.q_failed)
+        return result
+        
+    #################################################
+    def requeue_failed(self):
+        result=[]
+        for msgid in self.getlist()[os.path.basename(self.q_failed)]:
+            result.append(msgid)
+            self.move_msg(msgid, self.q_failed, self.q_input)
+        return result
+        
+    #################################################
+    def getlist(self):
+        """
+        dict of {"input":[msgid...],"success":[msgid...],"processing":[msgid...],"failed":[msgid...],}
+        """
+        result={}
+        for d in self.q_states:
+            if d == os.path.basename(self.q_input):         patt = os.path.join(self.q_input, "*.json")
+            if d == os.path.basename(self.q_processing):    patt = os.path.join(self.q_processing, "*.json")
+            if d == os.path.basename(self.q_failed):        patt = os.path.join(self.q_failed, "*.json")
+            if d == os.path.basename(self.q_success):       patt = os.path.join(self.q_success, "*.json")
+            jfilelist = glob.glob(patt)
+            result[d] = [os.path.basename(x).replace('.json', '') for x in jfilelist]
+        return result
 
     #################################################
     def send(self, list_of_dict):
@@ -85,7 +157,9 @@ class FsQueue():
         # write json file
         with open(os.path.join(self.q_input, id + '.json'),'w') as jfile:
             jfile.write(json.dumps(realmsg,indent=2))
+
         # pprint.pprint(realmsg)
+        return id
 
     #################################################
     def read_msg(self, msgid):
@@ -101,6 +175,7 @@ class FsQueue():
         if self.move_msg(msgid, self.q_input, self.q_processing) : #process message
             with open(os.path.join(self.q_processing, msgid+'.json'), 'rb') as infile:
                 list_of_dict = json.load(infile)
+            # pprint.pprint(list_of_dict)
             count =0
             for d in list_of_dict:
                 blobnames = d.pop("blobs",None)
@@ -130,7 +205,9 @@ class FsQueue():
 
             if filelist:
                 _msgid= os.path.basename(filelist[0]).replace('.json', '')
-                return _msgid, self.read_msg(_msgid)
+                msg = self.read_msg(_msgid)
+                # pprint.pprint(msg)
+                return _msgid, msg
 
             countdown -= 1
             if countdown <=0:   
@@ -163,6 +240,7 @@ def msgread(fsq):
     while True:
         id,msg=fsq.read()
         if id:
+            print("got msg:")
             pprint.pprint(msg)
             fsq.ack(id)
         else:
@@ -171,7 +249,8 @@ def msgread(fsq):
     
 if __name__ == "__main__":
     testq = FsQueue("testq",10)
-    msgsend(testq)
-    msgread(testq)
+    print(testq.q_states)
+    # msgsend(testq)
+    # msgread(testq)
     # testq.move_msg("testq-20220101-163343-002423", testq.q_failed, testq.q_input)
 
