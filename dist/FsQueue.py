@@ -42,8 +42,7 @@ class FsQueue():
             if os.path.isdir(fromblobdir):  shutil.rmtree(fromblobdir)
 
             return True
-        # except FileNotFoundError as e:
-        except IOError as e:
+        except (FileNotFoundError, OSError) as e:
             return False
     #################################################
     def move_msg(self, msgid, srcdir, destdir):
@@ -58,7 +57,7 @@ class FsQueue():
                 os.utime(p,(time.time(), time.time()))
 
             return True
-        except FileNotFoundError:
+        except (FileNotFoundError, OSError) as e:
             # print("filenotfound")
             return False
 
