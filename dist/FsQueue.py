@@ -1,4 +1,4 @@
-import os, sys, pprint, json, shutil, glob, pathlib
+import os, sys, pprint, json, shutil, glob
 import time
 import datetime as dt
 
@@ -30,9 +30,11 @@ class FsQueue():
     def del_msg(self, msgid, fromdir):
         try:
             os.remove(os.path.join(fromdir, msgid +'.json'))
-            shutil.rmtree(os.path.join(fromdir, msgid))
+            msgblobdir=os.path.join(fromdir, msgid)
+            if os.path.isdir(msgblobdir):   shutil.rmtree(msgblobdir)
             return True
-        except FileNotFoundError:
+        # except FileNotFoundError as e:
+        except IOError as e:
             return False
     #################################################
     def move_msg(self, msgid, srcdir, destdir):
@@ -41,11 +43,9 @@ class FsQueue():
             shutil.move(os.path.join(srcdir, msgid),  os.path.join(destdir, msgid))
             for p in glob.glob(os.path.join(destdir, msgid+"*")):
                 os.utime(p)
-                # with open(p, "a") as f:
-                #     pathlib.Path.touch(f)
-
             return True
-        except FileNotFoundError:
+        # except FileNotFoundError as e:
+        except IOError as e:
             return False
 
     #################################################
